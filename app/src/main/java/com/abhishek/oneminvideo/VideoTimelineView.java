@@ -123,6 +123,7 @@ public class VideoTimelineView extends View {
         if (event == null) {
             return (1==0);
         }
+        Log.w("Sf",String.valueOf(2));
         float x = event.getX();
         float y = event.getY();
 
