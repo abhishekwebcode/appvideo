@@ -6,14 +6,24 @@ import android.database.Cursor;
 import android.media.MediaMetadataRetriever;
 import android.media.MediaPlayer;
 import android.net.Uri;
+import android.opengl.GLSurfaceView;
 import android.os.Bundle;
+import android.os.Handler;
 import android.provider.MediaStore;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.view.View;
 import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
 import android.widget.MediaController;
 import android.widget.VideoView;
+
+import java.util.ArrayList;
+import java.util.concurrent.ExecutorCompletionService;
+import java.util.concurrent.ExecutorService;
+
+import javax.microedition.khronos.egl.EGLConfig;
+import javax.microedition.khronos.opengles.GL10;
 
 public class MainActivity extends AppCompatActivity implements VideoTimelineView.VideoTimelineViewDelegate {
     private static final String TAG = "MainActivity";
@@ -25,8 +35,63 @@ public class MainActivity extends AppCompatActivity implements VideoTimelineView
     boolean started = false;
     private Long videoLength;
 
+    int size = 0;
+    int curr_vid = 0;
+    Handler vidHandler = new Handler();
+    Runnable mRunnable;
+
     private float prog;
     private int currentDuration;
+
+    ArrayList<VideoTimelineView> videos = new ArrayList<>();
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+
+    }
+
+    /**
+     * Manages video playback
+     *
+     * @param stopExistingPlaying bool to stop complete playback
+     * @throws Exception for any error in playing , must update logs to developer to improve app
+     */
+    public void startPlaying(Boolean stopExistingPlaying) {
+        if (stopExistingPlaying) {
+            videoView.stopPlayback();
+        }
+        if (size == 0) {
+            videoView.stopPlayback();
+            return;
+        }
+        if (curr_vid == size) {
+            return;
+        }
+        videoView.setVideoPath(videos.get(curr_vid).path);
+        videoView.seekTo((int) videos.get(curr_vid).start_duration * 1000);
+        videoView.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+            @Override
+            public void onCompletion(MediaPlayer mp) {
+                curr_vid++;
+                startPlaying(false);
+            }
+        });
+        mRunnable = new Runnable() {
+            public void run() {
+                int currentPostion = videoView.getCurrentPosition();
+                if (currentPostion >= 30 * 1000 || currentPostion == videoView.getDuration()) {
+                    // Play next video
+                }
+                if ( (currentPostion >= videos.get(curr_vid).end_duration * 1000) && (currentPostion != videos.get(curr_vid).duration * 1000) ) {
+                    curr_vid++;
+                    MainActivity.this.startPlaying(false);
+                }
+                vidHandler.postDelayed(this, 250);
+            }
+        };
+        vidHandler.post(mRunnable);
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -39,8 +104,9 @@ public class MainActivity extends AppCompatActivity implements VideoTimelineView
         vd2 = findViewById(R.id.vd2);
         vd3 = findViewById(R.id.vd3);
 
-
-
+        videos.add(vd1);
+        videos.add(vd2);
+        videos.add(vd3);
 
 
         videoView.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
@@ -50,13 +116,14 @@ public class MainActivity extends AppCompatActivity implements VideoTimelineView
 
                 new Thread(new Runnable() {
                     public void run() {
-                        do{
+                        do {
                             vd1.post(new Runnable() {
                                 public void run() {
-                                    int time = (duration - videoView.getCurrentPosition())/1000;
-                                    if(videoView.isPlaying()){
-                                    vd1.setTranslationX(time*10);}
-                                    Log.d(TAG, "run: "+time);
+                                    int time = (duration - videoView.getCurrentPosition()) / 1000;
+                                    if (videoView.isPlaying()) {
+                                        vd1.setTranslationX(time * 10);
+                                    }
+                                    Log.d(TAG, "run: " + time);
                                 }
                             });
                             try {
@@ -64,26 +131,19 @@ public class MainActivity extends AppCompatActivity implements VideoTimelineView
                             } catch (InterruptedException e) {
                                 e.printStackTrace();
                             }
-                            if(!running) break;
+                            if (!running) break;
                         }
-                        while(videoView.getCurrentPosition()<duration);
+                        while (videoView.getCurrentPosition() < duration);
                     }
                 }).start();
             }
         });
 
 
-
-
-
-
         vd1.setDelegate(this);
         vd2.setDelegate(this);
         vd3.setDelegate(this);
         pickVideo();
-
-
-
 
 
     }
@@ -177,13 +237,6 @@ public class MainActivity extends AppCompatActivity implements VideoTimelineView
 
     }
 
-    @Override
-    public void doLeftTranslate(float Width, float x) {
-        Log.d("LEFT TRANS X",String.valueOf(x));
-        Log.d("LEFT TRANS WODTH",String.valueOf(Width));
-        //vd1.setTranslationX(-1*x);
-        //vd1.requestLayout();
-    }
 
     @Override
     public void onPointerCaptureChanged(boolean hasCapture) {

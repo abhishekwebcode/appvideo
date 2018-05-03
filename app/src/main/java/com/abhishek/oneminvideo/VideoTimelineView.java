@@ -1,6 +1,7 @@
 package com.abhishek.oneminvideo;
 
 
+import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
 import android.content.Context;
 import android.graphics.Bitmap;
@@ -30,6 +31,16 @@ public class VideoTimelineView extends View {
 
     private static final String TAG = "VideoTimelineView";
     public Float orignalWidth;
+
+    public int order;
+    public float duration;
+    public float start_handle;
+    public float end_handle;
+    public float current_duration;
+    public float start_duration;
+    public float end_duration;
+    public String path;
+
 
     private long videoLength;
     private float progressLeft;
@@ -67,7 +78,6 @@ public class VideoTimelineView extends View {
 
         void didStopDragging();
 
-        void doLeftTranslate(float Width,float x);
     }
 
     public VideoTimelineView(Context context) {
@@ -80,7 +90,6 @@ public class VideoTimelineView extends View {
         paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         paint.setColor(0xffffffff);
         paint2 = new Paint();
-
         paint2.setColor(0x7f000000);
     }
 
@@ -189,6 +198,8 @@ public class VideoTimelineView extends View {
                     Log.d("touch log", "onTouchEvent: " + progressLeft);
                     delegate.onLeftProgressChanged(progressLeft);
                 }
+                start_handle=progressLeft;
+                start_duration=start_handle*duration;
                 invalidate();
                 return true;
             } else if (pressedRight) {
@@ -211,6 +222,8 @@ public class VideoTimelineView extends View {
                     Log.d("touch right", "onTouchEvent: " + progressRight);
                     delegate.onRightProgressChanged(progressRight);
                 }
+                end_handle=progressRight;
+                end_duration=progressRight*duration;
                 invalidate();
                 return true;
             }
@@ -227,10 +240,13 @@ public class VideoTimelineView extends View {
         mediaMetadataRetriever = new MediaMetadataRetriever();
         progressLeft = 0.0f;
         progressRight = 1.0f;
+        path=path;
         try {
             mediaMetadataRetriever.setDataSource(path);
             Log.d(TAG, "setVideoPath: path " + path);
             String duration = mediaMetadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
+            this.duration=new Float(duration);
+
             videoLength = Long.parseLong(duration);
 
             Log.d(TAG, "setVideoPath: dataRetriever " + mediaMetadataRetriever);
@@ -244,6 +260,7 @@ public class VideoTimelineView extends View {
         this.delegate = delegate;
     }
 
+    @SuppressLint("StaticFieldLeak")
     private void reloadFrames(int frameNum) {
         if (mediaMetadataRetriever == null) {
             return;
@@ -315,6 +332,7 @@ public class VideoTimelineView extends View {
                     mediaMetadataRetriever = null;
                 }
             } catch (Exception e) {
+                e.printStackTrace();
             }
         }
         for (Bitmap bitmap : frames) {
@@ -373,7 +391,7 @@ public class VideoTimelineView extends View {
         }
 
         int top = AndroidUtilities.dp(2);
-        paint2.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.CLEAR));
+//      paint2.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.CLEAR));
 
 
         canvas.drawRect(AndroidUtilities.dp(16), top, startX, getMeasuredHeight() - top, paint2);
@@ -391,7 +409,11 @@ public class VideoTimelineView extends View {
         canvas.drawCircle(startX, getMeasuredHeight() / 2, AndroidUtilities.dp(21), paint);
         canvas.drawCircle(endX + AndroidUtilities.dp(4), getMeasuredHeight() / 2, AndroidUtilities.dp(21), paint);
         canvas.save();
-        delegate.doLeftTranslate(width,endX + AndroidUtilities.dp(4));
+        //delegate.doLeftTranslate(width,endX + AndroidUtilities.dp(4));
+    }
+
+    public float getDurationPlaying() {
+        return end_duration-start_duration;
     }
 
 
